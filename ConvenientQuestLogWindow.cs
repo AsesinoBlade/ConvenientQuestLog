@@ -26,17 +26,14 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
         static int defaultMessageCheckValue = -1;
         int currentMessageCheck = defaultMessageCheckValue;
 
-        bool useDurationTokenSetting = false;
-        bool useDetailedQuestDurationSetting = false;
-
         Dictionary<string, string> stringTable = null;
 
         string untitledQuest = "Untitled Quest";
-        string activeQuestToolTipText = "Click on a quest mesage to go back to Active Quests.";
+        string activeQuestToolTipText = "Click on a quest message to go back to Active Quests.";
         string journalToolTipText = "Click on a quest for quest information. Click on a location to travel there.";
-        string cancelMainStory = "You cannot cancel main story quests.";
-        string cancelOneTime = "You cannot cancel one time quests.";
-        string areYouSure = "Are you sure you want to cancel {0}?";
+        string cancelMainStory = "You cannot cancel main story quests. {0} [{1}]";
+        string cancelOneTime = "You cannot cancel one time quests.  {0} [{1}]";
+        string areYouSure = "Are you sure you want to cancel {0} [{1}]?";
         string currentLocation = "Current location";
         string travelOptionsDuration = "{0} hours {1} mins travel";
         string travelDuration = "{0} days travel";
@@ -54,9 +51,6 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
         protected override void Setup()
         {
             base.Setup();
-            useDurationTokenSetting = RegisterConvenientQuestLogWindow.mod.GetSettings().GetBool("General", "QuestsShouldContainDurationToken");
-            useDetailedQuestDurationSetting = RegisterConvenientQuestLogWindow.mod.GetSettings().GetBool("General", "DetailedQuestDuration");
-
             Mod travelOptionsMod = ModManager.Instance.GetMod("TravelOptions");
 
             if (travelOptionsMod != null)
@@ -134,10 +128,12 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                         selectedQuestMessage = groupedQuestMessages[selectedEntry];
                         if (remove)
                         {
-                            if (selectedQuestMessage.ParentQuest.QuestName.StartsWith("S0000"))
+                            if ((RegisterConvenientQuestLogWindow.MainQuestMandatoryList.Contains(selectedQuestMessage.ParentQuest.QuestName) ||
+                                 RegisterConvenientQuestLogWindow.MainQuestOptionalList.Contains(selectedQuestMessage.ParentQuest.QuestName)) ||
+                                 selectedQuestMessage.ParentQuest.QuestName.StartsWith("S0000"))
                             {
                                 DaggerfallMessageBox messageBox = new DaggerfallMessageBox(uiManager, uiManager.TopWindow);
-                                messageBox.SetText(cancelMainStory);
+                                messageBox.SetText(string.Format(cancelMainStory, selectedQuestMessage.ParentQuest.DisplayName, selectedQuestMessage.ParentQuest.UID));
                                 messageBox.ClickAnywhereToClose = true;
                                 messageBox.AllowCancel = false;
                                 messageBox.ParentPanel.BackgroundColor = Color.clear;
@@ -146,7 +142,7 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                             else if (selectedQuestMessage.ParentQuest.OneTime)
                             {
                                 DaggerfallMessageBox messageBox = new DaggerfallMessageBox(uiManager, uiManager.TopWindow);
-                                messageBox.SetText(cancelOneTime);
+                                messageBox.SetText(string.Format(cancelOneTime, selectedQuestMessage.ParentQuest.DisplayName, selectedQuestMessage.ParentQuest.UID));
                                 messageBox.ClickAnywhereToClose = true;
                                 messageBox.AllowCancel = false;
                                 messageBox.ParentPanel.BackgroundColor = Color.clear;
@@ -154,7 +150,7 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                             }
                             else
                             {
-                                DaggerfallMessageBox messageBox = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, string.Format(areYouSure, selectedQuestMessage.ParentQuest.DisplayName), this);
+                                DaggerfallMessageBox messageBox = new DaggerfallMessageBox(uiManager, DaggerfallMessageBox.CommonMessageBoxButtons.YesNo, string.Format(areYouSure, selectedQuestMessage.ParentQuest.DisplayName, selectedQuestMessage.ParentQuest.UID), this);
                                 messageBox.ClickAnywhereToClose = true;
                                 messageBox.AllowCancel = false;
                                 messageBox.ParentPanel.BackgroundColor = Color.clear;
@@ -242,16 +238,16 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
             }
             for (int i = currentMessageIndex; i < groupedQuestMessages.Count && num < 20; i++)
             {
-                string title = FormatQuestTitle(groupedQuestMessages[i].ParentQuest.DisplayName);
+                string title = FormatQuestTitle(groupedQuestMessages[i].ParentQuest.DisplayName, groupedQuestMessages[i].ParentQuest.QuestName);
 
                 bool haveDurationTokens = false;
 
-                if (useDurationTokenSetting)
+                if (RegisterConvenientQuestLogWindow.useDurationTokenSetting)
                 {
                     haveDurationTokens = questMessages.Where(x => x.ParentQuest == groupedQuestMessages[i].ParentQuest).Any(y => y.Variants.Any(z => z.tokens.Any(a => a.text.Contains(durationSearchToken)))); ;
                 }
 
-                if (!useDurationTokenSetting || (useDurationTokenSetting && haveDurationTokens))
+                if (!RegisterConvenientQuestLogWindow.useDurationTokenSetting || (RegisterConvenientQuestLogWindow.useDurationTokenSetting && haveDurationTokens))
                 {
                     List<Clock> clocks = new List<Clock>();
                     foreach (Clock clockResource in groupedQuestMessages[i].ParentQuest.GetAllResources(typeof(Clock)).Cast<Clock>())
@@ -262,7 +258,7 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                     if (clocks.Any())
                     {
                         Clock clock = clocks.OrderBy(x => x.RemainingTimeInSeconds).First();
-                        if (useDetailedQuestDurationSetting)
+                        if (RegisterConvenientQuestLogWindow.useDetailedQuestDurationSetting)
                         {
                             string timeLeft = clock.GetTimeString(clock.RemainingTimeInSeconds);
 
@@ -329,7 +325,7 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                 return;
             }
 
-            titleLabel.Text = FormatQuestTitle(list.First().ParentQuest.DisplayName);
+            titleLabel.Text = FormatQuestTitle(list.First().ParentQuest.DisplayName, list.First().ParentQuest.QuestName);
             titleLabel.ToolTip = defaultToolTip;
             titleLabel.ToolTipText = activeQuestToolTipText;
             int num = 0;
@@ -357,10 +353,15 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
             questLogLabel.SetText(tokenList.ToArray());
         }
 
-        private string FormatQuestTitle(string questTitle)
+        private string FormatQuestTitle(string questTitle, string questName)
         {
             if (questTitle == "Main Quest Backbone")
                 questTitle = questTitle.Replace(" Backbone", string.Empty);
+            if (RegisterConvenientQuestLogWindow.IdentifyMainQuests && (RegisterConvenientQuestLogWindow.MainQuestMandatoryList.Contains(questName) || 
+			    RegisterConvenientQuestLogWindow.MainQuestOptionalList.Contains(questName)))
+                if (questTitle != "Main Quest")
+                    questTitle = questTitle + " - Main Quest";
+
             return !string.IsNullOrWhiteSpace(questTitle) ? questTitle : untitledQuest;
         }
 
