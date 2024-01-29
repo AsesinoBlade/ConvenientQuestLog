@@ -60,17 +60,15 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
         // Get mod
         RegisterConvenientQuestLogWindow.mod = initParams.Mod;
 
-
-        // Register Custom UI Window
-        UIWindowFactory.RegisterCustomUIWindow(UIWindowType.QuestJournal, typeof(ConvenientQuestLogWindow));
-
-
         // Add script to the scene.
-        instance = new GameObject("ConvenientQuestLog").AddComponent<RegisterConvenientQuestLogWindow>();
+        instance = new GameObject(mod.Title).AddComponent<RegisterConvenientQuestLogWindow>();
     }
 
     public void Start()
     {
+        // Register Custom UI Window
+        UIWindowFactory.RegisterCustomUIWindow(UIWindowType.QuestJournal, typeof(ConvenientQuestLogWindow));
+
         QuestMachine.OnQuestStarted += QuestMachineOnOnQuestStarted;
     }
 
