@@ -48,9 +48,12 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
             LoadText();
         }
 
+ 
+
         protected override void Setup()
         {
             base.Setup();
+            questLogLabel.OnMiddleMouseClick += QuestLogLabel_OnMiddleMouseClick;
             Mod travelOptionsMod = ModManager.Instance.GetMod("TravelOptions");
 
             if (travelOptionsMod != null)
@@ -60,6 +63,125 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                 travelOptionsCautiousTravel = travelOptionsSettings.GetBool("CautiousTravel", "PlayerControlledCautiousTravel");
                 travelOptionsStopAtInnsTravel = travelOptionsSettings.GetBool("StopAtInnsTravel", "PlayerControlledInnsTravel");
             }
+        }
+
+        private void QuestLogLabel_OnMiddleMouseClick(BaseScreenComponent sender, Vector2 position)
+        {
+            if (DisplayMode != JournalDisplay.ActiveQuests)
+            {
+                base.HandleClick(position, false);
+            }
+            else
+            {
+                if (entryLineMap == null)
+                    return;
+                int line = (int)position.y / questLogLabel.LineHeight;
+
+                if (line < entryLineMap.Count)
+                    selectedEntry = entryLineMap[line];
+                else
+                    selectedEntry = entryLineMap[entryLineMap.Count - 1];
+
+                //Debug.Log($"Line is: {line} entry: {selectedEntry}");
+
+                if (ConvenientQuestLogWindow.selectedQuestDisplayed)
+                {
+                    currentMessageIndex = 0;
+                    SetTextActiveQuests();
+                }
+                else
+                {
+                    //ensure nothing happens when last empty line is clicked
+                    if (line + 1 >= entryLineMap.Count)
+                        return;
+                    if (line == 0 || entryLineMap[line - 1] != selectedEntry)
+                    {
+                        currentMessageIndex = 0;
+                        selectedQuestMessage = groupedQuestMessages[selectedEntry];
+                        DisplayQuestInfo(selectedQuestMessage.ParentQuest);
+                    }
+                }
+            }
+        }
+
+        void DisplayQuestInfo(Quest quest)
+        {
+            var newTokens = new TextFile.Token[70];
+            string str = "";
+            int n = 0;
+            int questNumber = 0;
+            int messageBoxNumber = 1;
+            DaggerfallMessageBox messageBox = new DaggerfallMessageBox(uiManager, uiManager.TopWindow);
+            DaggerfallMessageBox lastMessagebox = messageBox;
+            newTokens[n++] = new TextFile.Token() {formatting = TextFile.Formatting.TextHighlight, text = $" {quest.DisplayName} : {quest.QuestName}"};
+            newTokens[n++] = new TextFile.Token() {formatting = TextFile.Formatting.JustifyCenter};
+            foreach (var task in quest.tasks.Values)
+            {
+                if (questNumber++ > 10)
+                {
+                    if (messageBoxNumber == 1)
+                    {
+                        messageBox.SetTextTokens(newTokens);
+                        messageBox.ClickAnywhereToClose = true;
+                        messageBox.AllowCancel = true;
+                        messageBox.ParentPanel.BackgroundColor = Color.clear;
+                    }
+                    else
+                    {
+                        var partialMessageBox = new DaggerfallMessageBox(uiManager, messageBox);
+                        partialMessageBox.SetTextTokens(newTokens);
+                        partialMessageBox.ClickAnywhereToClose = true;
+                        partialMessageBox.AllowCancel = true;
+                        lastMessagebox.AddNextMessageBox(partialMessageBox);
+                        lastMessagebox = partialMessageBox;
+                    }
+                    newTokens = new TextFile.Token[70];
+                    n = 0;
+                    questNumber = 0;
+                    newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.TextHighlight, text = $" {quest.DisplayName} : {quest.QuestName}" };
+                    newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.JustifyCenter };
+
+                    messageBoxNumber++;
+                }
+                if (task.Type == Task.TaskType.Headless)
+                    str = $"startup ";
+                else if (task.Type == Task.TaskType.PersistUntil)
+                {
+                    str = $"until_{task.TargetSymbol.Name}" ;
+                }
+                else
+                    str = task.Symbol.Name;
+                var textFormat = TextFile.Formatting.TextQuestion;
+                
+                if (task.IsTriggered)
+                    textFormat = TextFile.Formatting.TextAnswer;
+
+                newTokens[n++] = new TextFile.Token() { formatting = textFormat, text = $"{str}" };
+
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = new TextFile.Token() { formatting = textFormat, text = (task.IsTriggered ? "Active" : "Inactive") };
+                newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.JustifyLeft };
+            }
+            if (n > 2)
+            {
+                if (messageBoxNumber == 1)
+                {
+                    messageBox.SetTextTokens(newTokens);
+                    messageBox.ClickAnywhereToClose = true;
+                    messageBox.AllowCancel = true;
+                    messageBox.ParentPanel.BackgroundColor = Color.clear;
+                }
+                else
+                {
+                    var partialMessageBox = new DaggerfallMessageBox(uiManager, messageBox);
+                    partialMessageBox.SetTextTokens(newTokens);
+                    partialMessageBox.ClickAnywhereToClose = true;
+                    partialMessageBox.AllowCancel = true;
+                    lastMessagebox.AddNextMessageBox(partialMessageBox);
+                }
+            }
+            messageBox.Show();
         }
 
         public override void Update()
@@ -91,6 +213,62 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
         {
             base.OnPop();
             currentMessageCheck = defaultMessageCheckValue;
+        }
+
+        string UpdateQuestStatus(Quest quest)
+        {
+            var str = string.Empty;
+
+            var currentQuest = quest;
+
+            // Set quest name
+            if (!string.IsNullOrEmpty(quest.DisplayName))
+                str += $"{quest.QuestName} '{quest.DisplayName}' ";
+            else
+                str += $"{quest.QuestName} ";
+
+            // Set quest UID
+            str += $"[UID={quest.UID}]";
+
+ 
+            // Set task labels
+            Quest.TaskState[] states = currentQuest.GetTaskStates();
+            for (int i = 0; i < states.Length;  i++)
+            {
+                if (states[i].type == Task.TaskType.Headless)
+                    str += $"startup " + (states[i].set ? " completed " : " active");
+                else if (states[i].type == Task.TaskType.PersistUntil)
+                {
+                    Task task = quest.GetTask(states[i].symbol);
+                    str += $"until_{task.TargetSymbol.Name}" + (states[i].set ? " completed " : " active");
+                }
+                else
+                    str += states[i].symbol.Name + (states[i].set ? " completed " : " active");
+            }
+            /*
+            // Set timer status
+            QuestResource[] clocks = currentQuest.GetAllResources(typeof(Clock));
+            for (int i = 0; i < clocks.Length && i < timerLabelPool.Length; i++)
+            {
+                timerLabelPool[i].Enabled = true;
+            }
+
+ 
+            // Set running status
+            // TODO: Use this line for step-through debugging
+            if (!currentQuest.QuestComplete)
+            {
+                processLabel.Text = string.Format("[{0}] - {1}", DaggerfallUnity.Instance.WorldTime.Now.MinTimeString(), questRunning);
+            }
+            else
+            {
+                if (currentQuest.QuestSuccess)
+                    processLabel.Text = string.Format("[{0}] - {1}", DaggerfallUnity.Instance.WorldTime.Now.MinTimeString(), questFinishedSuccess);
+                else
+                    processLabel.Text = string.Format("[{0}] - {1}", DaggerfallUnity.Instance.WorldTime.Now.MinTimeString(), questFinishedEnded);
+            }
+*/
+            return str;
         }
 
         protected override void HandleClick(Vector2 position, bool remove = false)
@@ -159,7 +337,9 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                             }
                         }
                         else
+                        {
                             SetTextForSelectedQuest(selectedQuestMessage);
+                        }
                     }
                     else
                     {
