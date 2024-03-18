@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-
+using ActionsMod;
 using UnityEngine;
 
 using DaggerfallConnect;
 using DaggerfallConnect.Arena2;
 using DaggerfallConnect.Utility;
 using DaggerfallWorkshop.Game.Questing;
+using DaggerfallWorkshop.Game.Questing.Actions;
 using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
@@ -67,6 +68,8 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
 
         private void QuestLogLabel_OnMiddleMouseClick(BaseScreenComponent sender, Vector2 position)
         {
+            bool enhanced = Input.GetKey(KeyCode.LeftShift);
+
             if (DisplayMode != JournalDisplay.ActiveQuests)
             {
                 base.HandleClick(position, false);
@@ -98,19 +101,32 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                     {
                         currentMessageIndex = 0;
                         selectedQuestMessage = groupedQuestMessages[selectedEntry];
-                        DisplayQuestInfo(selectedQuestMessage.ParentQuest);
+                        DisplayQuestInfo(selectedQuestMessage.ParentQuest, enhanced);
                     }
                 }
             }
         }
 
-        void DisplayQuestInfo(Quest quest)
+        bool IncludesPlaceNpc(Task task)
         {
-            var newTokens = new TextFile.Token[70];
+            return task.Actions.OfType<PlaceNpc>().Any();
+        }
+
+        public PlaceNpc GetPlaceNpcAction(Task task)
+        {
+            return task.Actions.OfType<PlaceNpc>().FirstOrDefault();
+        }
+
+
+        void DisplayQuestInfo(Quest quest, bool enhanced)
+        {
+            var newTokens = new TextFile.Token[125];
             string str = "";
             int n = 0;
             int questNumber = 0;
             int messageBoxNumber = 1;
+            var lastResourceReferenced = quest.LastResourceReferenced;
+            var lastLocationReferenced = quest.LastPlaceReferenced;
             DaggerfallMessageBox messageBox = new DaggerfallMessageBox(uiManager, uiManager.TopWindow);
             DaggerfallMessageBox lastMessagebox = messageBox;
             newTokens[n++] = new TextFile.Token() {formatting = TextFile.Formatting.TextHighlight, text = $" {quest.DisplayName} : {quest.QuestName}"};
@@ -160,6 +176,16 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
 
                 newTokens[n++] = TextFile.TabToken;
                 newTokens[n++] = TextFile.TabToken;
+                if (enhanced && IncludesPlaceNpc(task))
+                {
+                    var action = GetPlaceNpcAction(task);
+                    if (action != null)
+                    {
+                        newTokens[n++] = new TextFile.Token() { formatting = textFormat, text = action.DebugSource };
+                        newTokens[n++] = TextFile.TabToken;
+                        newTokens[n++] = TextFile.TabToken;
+                    }
+                }
                 newTokens[n++] = new TextFile.Token() { formatting = textFormat, text = (task.IsTriggered ? "Active" : "Inactive") };
                 newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.JustifyLeft };
             }
@@ -171,6 +197,7 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                     messageBox.ClickAnywhereToClose = true;
                     messageBox.AllowCancel = true;
                     messageBox.ParentPanel.BackgroundColor = Color.clear;
+                    lastMessagebox = messageBox;
                 }
                 else
                 {
@@ -179,8 +206,138 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                     partialMessageBox.ClickAnywhereToClose = true;
                     partialMessageBox.AllowCancel = true;
                     lastMessagebox.AddNextMessageBox(partialMessageBox);
+                    lastMessagebox = partialMessageBox;
                 }
             }
+
+            // Display Resource information
+            if (enhanced)
+            {
+                //Display persons
+                newTokens = new TextFile.Token[125];
+                n = 0;
+
+                str = "Key";
+                newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                str = "Name";
+                newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                str = "Region";
+                newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                str = "Town";
+                newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                str = "Building";
+                newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.JustifyLeft };
+                foreach (KeyValuePair<string, QuestResource> resource in quest.resources.Where(x => x.Value is Person))
+                {
+                    Person person = (Person)resource.Value;
+                    str = resource.Key;
+                    newTokens[n++] = new TextFile.Token()
+                        { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = TextFile.TabToken;
+                    newTokens[n++] = TextFile.TabToken;
+                    str = person.DisplayName;
+                    newTokens[n++] = new TextFile.Token()
+                        { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = TextFile.TabToken;
+                    newTokens[n++] = TextFile.TabToken;
+                    str = person.HomeRegionName;
+                    newTokens[n++] = new TextFile.Token()
+                        { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = TextFile.TabToken;
+                    newTokens[n++] = TextFile.TabToken;
+                    str = person.HomeTownName;
+                    newTokens[n++] = new TextFile.Token()
+                        { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = TextFile.TabToken;
+                    newTokens[n++] = TextFile.TabToken;
+                    str = person.HomeBuildingName;
+                    newTokens[n++] = new TextFile.Token()
+                        { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.JustifyLeft };
+
+                }
+
+                var resourcePersonBox = new DaggerfallMessageBox(uiManager, messageBox);
+                resourcePersonBox.SetTextTokens(newTokens);
+                resourcePersonBox.ClickAnywhereToClose = true;
+                resourcePersonBox.AllowCancel = true;
+                lastMessagebox.AddNextMessageBox(resourcePersonBox);
+                lastMessagebox = resourcePersonBox;
+
+                //Display places
+                newTokens = new TextFile.Token[125];
+                n = 0;
+
+                str = "Key";
+                newTokens[n++] = new TextFile.Token()
+                { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                str = "Region";
+                newTokens[n++] = new TextFile.Token()
+                { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                str = "Town";
+                newTokens[n++] = new TextFile.Token()
+                { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = TextFile.TabToken;
+                newTokens[n++] = TextFile.TabToken;
+                str = "Building";
+                newTokens[n++] = new TextFile.Token()
+                { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.JustifyLeft };
+                foreach (KeyValuePair<string, QuestResource> resource in quest.resources.Where(x => x.Value is Place))
+                {
+                    Place place = (Place)resource.Value;
+                    str = resource.Key;
+                    newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = TextFile.TabToken;
+                    newTokens[n++] = TextFile.TabToken;
+                     str = place.SiteDetails.regionName;
+                    newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = TextFile.TabToken;
+                    newTokens[n++] = TextFile.TabToken;
+                    str = place.SiteDetails.locationName;
+                    newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = TextFile.TabToken;
+                    newTokens[n++] = TextFile.TabToken;
+                    str = place.SiteDetails.buildingName;
+                    newTokens[n++] = new TextFile.Token()
+                    { formatting = TextFile.Formatting.TextQuestion, text = $"{str}" };
+                    newTokens[n++] = new TextFile.Token() { formatting = TextFile.Formatting.JustifyLeft };
+
+                }
+
+                var resourcePlaceBox = new DaggerfallMessageBox(uiManager, messageBox);
+                resourcePlaceBox.SetTextTokens(newTokens);
+                resourcePlaceBox.ClickAnywhereToClose = true;
+                resourcePlaceBox.AllowCancel = true;
+                lastMessagebox.AddNextMessageBox(resourcePlaceBox);
+                lastMessagebox = resourcePlaceBox;
+
+            }
+
+
+
+
             messageBox.Show();
         }
 
