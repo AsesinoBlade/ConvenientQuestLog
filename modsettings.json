@@ -36,6 +36,13 @@
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
                 },
                 {
+                    "Value": false,
+                    "Name": "IdentifyMainQuestOptionalVsMandatory",
+                    "Description": "Needs IdentifyMainQuest enabled; if enabled, mandatoryMessage is used for both optional and mandatory",
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
                     "Min": 0,
                     "Max": 10,
                     "Value": 2,
@@ -43,6 +50,20 @@
                     "Description": null,
                     "$version": "v1",
                     "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.SliderIntKey"
+                },
+                {
+                    "Value": "This should help me with the Emporer's quest.",
+                    "Name": "MandatoryMessage",
+                    "Description": null,
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
+                },
+                {
+                    "Value": "This might help me with the Emporer's quest.",
+                    "Name": "OptionalMessage",
+                    "Description": null,
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.TextKey"
                 }
             ],
             "$version": "v1"

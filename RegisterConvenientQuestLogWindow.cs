@@ -12,9 +12,12 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
     public static Mod mod;
     public static RegisterConvenientQuestLogWindow instance;
     public static bool IdentifyMainQuests = false;
+    public static bool IdentifyMainQuestOptionalVsMandatory = false;
     public static int MessageDelay = 10;
     public static bool useDurationTokenSetting = false;
     public static bool useDetailedQuestDurationSetting = false;
+    public static string MandatoryMessage = string.Empty;
+    public static string OptionalMessage = string.Empty;
 
     public static List<string> MainQuestMandatoryList = new List<string>()
     {
@@ -76,16 +79,17 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
     {
         if (!IdentifyMainQuests)
             return;
-
+        var useForOptionalMessage = IdentifyMainQuestOptionalVsMandatory ? OptionalMessage : MandatoryMessage;
+        
         if (MessageDelay > 0)
         {
             if (MainQuestMandatoryList.Contains(quest.QuestName))
             {
-                DaggerfallUI.AddHUDText("*** MAIN QUEST MANDATORY ***", MessageDelay);
+                DaggerfallUI.AddHUDText(MandatoryMessage, MessageDelay);
             }
             else if (MainQuestOptionalList.Contains(quest.QuestName))
             {
-                DaggerfallUI.AddHUDText("*** MAIN QUEST OPTIONAL ***", MessageDelay);
+                DaggerfallUI.AddHUDText(useForOptionalMessage, MessageDelay);
 
             }
         }
@@ -93,12 +97,11 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
         {
             if (MainQuestMandatoryList.Contains(quest.QuestName))
             {
-                DaggerfallUI.AddHUDText("*** MAIN QUEST MANDATORY ***");
+                DaggerfallUI.AddHUDText(MandatoryMessage);
             }
             else if (MainQuestOptionalList.Contains(quest.QuestName))
             {
-                DaggerfallUI.AddHUDText("*** MAIN QUEST OPTIONAL ***");
-
+                DaggerfallUI.AddHUDText(useForOptionalMessage);
             }
         }
     }
@@ -114,8 +117,11 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
     {
 
         IdentifyMainQuests = settings.GetValue<bool>("Option", "IdentifyMainQuests");
+        IdentifyMainQuestOptionalVsMandatory = settings.GetValue<bool>("Option", "IdentifyMainQuestOptionalVsMandatory");
         MessageDelay = settings.GetValue<int>("Option", "MessageDelay");
         useDurationTokenSetting = settings.GetValue<bool>("General", "QuestsShouldContainDurationToken");
         useDetailedQuestDurationSetting = settings.GetValue<bool>("General", "DetailedQuestDuration");
+        MandatoryMessage = settings.GetValue<string>("Option", "MandatoryMessage");
+        OptionalMessage = settings.GetValue<string>("Option", "OptionalMessage");
     }
 }
