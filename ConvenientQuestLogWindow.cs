@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using ActionsMod;
 using UnityEngine;
 
@@ -69,6 +70,7 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
         private void QuestLogLabel_OnMiddleMouseClick(BaseScreenComponent sender, Vector2 position)
         {
             bool enhanced = Input.GetKey(KeyCode.LeftShift);
+            bool jumpIntoDebug = Input.GetKey(KeyCode.LeftControl);
 
             if (DisplayMode != JournalDisplay.ActiveQuests)
             {
@@ -99,6 +101,14 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                         return;
                     if (line == 0 || entryLineMap[line - 1] != selectedEntry)
                     {
+                        if (jumpIntoDebug)
+                        {
+                            HUDQuestDebugger.ShowThisQuest = groupedQuestMessages[selectedEntry].ParentQuest;
+                            Thread.Sleep(500);
+
+                            DaggerfallUI.UIManager.PopWindow();
+                            return;
+                        }
                         currentMessageIndex = 0;
                         selectedQuestMessage = groupedQuestMessages[selectedEntry];
                         DisplayQuestInfo(selectedQuestMessage.ParentQuest, enhanced);
