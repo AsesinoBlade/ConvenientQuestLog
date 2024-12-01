@@ -1,11 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
-using ActionsMod;
-using UnityEngine;
-
 using DaggerfallConnect;
 using DaggerfallConnect.Arena2;
 using DaggerfallConnect.Utility;
@@ -15,6 +7,11 @@ using DaggerfallWorkshop.Game.UserInterface;
 using DaggerfallWorkshop.Game.Utility;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Utility;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using UnityEngine;
 
 namespace DaggerfallWorkshop.Game.UserInterfaceWindows
 {
@@ -824,9 +821,9 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
                     selectedEntry = entryLineMap[line];
                 else
                     selectedEntry = entryLineMap[entryLineMap.Count - 1];
-
+#if UNITY_EDITOR
                 Debug.Log($"Line is: {line} entry: {selectedEntry}");
-
+#endif
                 if (ConvenientQuestLogWindow.selectedQuestDisplayed)
                 {
                     currentMessageIndex = 0;
