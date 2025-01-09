@@ -1,10 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DaggerfallWorkshop.Game;
+using DaggerfallWorkshop.Game.Formulas;
 using DaggerfallWorkshop.Game.Questing;
 using DaggerfallWorkshop.Game.Utility.ModSupport;
 using DaggerfallWorkshop.Game.UserInterfaceWindows;
 using DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings;
+using System;
+using System.Linq;
+using DaggerfallWorkshop.Utility;
+using DaggerfallConnect.Arena2;
+using DaggerfallWorkshop.Localization;
 
 
 public class RegisterConvenientQuestLogWindow : MonoBehaviour
@@ -73,6 +79,85 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
         UIWindowFactory.RegisterCustomUIWindow(UIWindowType.QuestJournal, typeof(ConvenientQuestLogWindow));
 
         QuestMachine.OnQuestStarted += QuestMachineOnOnQuestStarted;
+        FormulaHelper.RegisterOverride(mod, "ReplyFinishTheQuestFirst", (Func<QuestResourceBehaviour, bool>)ReplyFinishTheQuestFirst);
+    }
+
+    private bool ReplyFinishTheQuestFirst(QuestResourceBehaviour questResourceBehaviour)
+    {
+        QuestMacroHelper macroHelper = new QuestMacroHelper();
+        string str = "";
+        string[] starters = new string[]
+        {
+            $"Did you already forget what you need to do for {questResourceBehaviour.TargetQuest.DisplayName}, as I already said[/center]",
+            "time placeholder",
+            $"I don't think you finished {questResourceBehaviour.TargetQuest.DisplayName} yet.[/center]",
+            $"I've already told you all I know about {questResourceBehaviour.TargetQuest.DisplayName}[/center]",
+            $"I'm not sure why you are asking me about {questResourceBehaviour.TargetQuest.DisplayName},\nas I've already told you everything I know.[/center]",
+        };
+
+        Clock clock = null;
+        foreach (KeyValuePair<string, QuestResource> resource in questResourceBehaviour.TargetQuest.resources.Where(x => x.Value is Clock))
+        {
+            clock = (Clock)resource.Value;
+            var remainingDays = clock.RemainingTimeInSeconds / 86400;
+            float remainingHours = (clock.RemainingTimeInSeconds - remainingDays * 86400) / 3600f;
+            int remainingHoursInt = (clock.RemainingTimeInSeconds - remainingDays * 86400) / 3600;
+            var adj = "";
+            if (remainingHoursInt * 3600 == clock.RemainingTimeInSeconds - remainingDays* 86400)
+            {
+                adj = "exactly";
+            }
+            else if (remainingHours - remainingHoursInt < 0.5)
+            {
+                adj = "less than";
+            }
+            else
+            {
+                adj = "a bit more than";
+            }
+
+            if (remainingDays > 0 && remainingHours > 0f)
+                starters[1] = $"Hurry up, you only have  {(int)remainingDays} days and {adj} {remainingHoursInt} hours left\nto complete {questResourceBehaviour.TargetQuest.DisplayName}[/center]";
+            else if (remainingHours > 0)
+                starters[1] = $"Hurry up, you only have {adj} {remainingHoursInt} hours left\nto complete {questResourceBehaviour.TargetQuest.DisplayName}[/center]";
+        }
+
+
+        if (questResourceBehaviour.TargetQuest == null)
+            return false;
+        TextFile.Token[] tokens;
+
+        if (questResourceBehaviour.TargetQuest.messages.ContainsKey(1002) == false)
+        {
+            str =
+                $"Aren't you supposed to be working on {questResourceBehaviour.TargetQuest.DisplayName},\nlet me know when you are done.[/center]";
+            tokens = DaggerfallStringTableImporter.ConvertStringToRSCTokens(str);
+            DaggerfallUI.MessageBox(tokens);
+            return false;
+        }
+        var selection = UnityEngine.Random.Range(0, starters.Length);
+
+        if (selection > 0)
+        {
+            tokens = DaggerfallStringTableImporter.ConvertStringToRSCTokens(starters[selection]);
+            DaggerfallUI.MessageBox(tokens);
+            return false;
+        }
+
+        tokens = questResourceBehaviour.TargetQuest.messages[1002].GetTextTokens();
+        if (tokens == null || tokens.Length == 0)
+        {
+            DaggerfallUI.MessageBox(
+                $"Aren't you supposed to be working on {questResourceBehaviour.TargetQuest.DisplayName}, let me know when you are done.");
+            return false;
+        }
+
+        macroHelper.ExpandQuestMessage(questResourceBehaviour.TargetQuest, ref tokens, true);
+        str = DaggerfallStringTableImporter.ConvertRSCTokensToString(9999, tokens);
+        str = starters[0] + "\n" + str;
+        tokens = DaggerfallStringTableImporter.ConvertStringToRSCTokens(str);
+        DaggerfallUI.MessageBox(tokens);
+        return true;
     }
 
     private void QuestMachineOnOnQuestStarted(Quest quest)
