@@ -11,5 +11,6 @@
         "Assets/Game/Mods/ConvenientQuestLog/ConvenientQuestLogWindow.cs",
         "Assets/Game/Mods/ConvenientQuestLog/RegisterConvenientQuestLogWindow.cs"
     ],
-    "ModPreCompile": true
+    "ModPreCompile": true,
+    "ModPatch": false
 }

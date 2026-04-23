@@ -1023,6 +1023,46 @@ namespace DaggerfallWorkshop.Game.UserInterfaceWindows
 
         private void SetTextForSelectedQuest(Message message)
         {
+            var questText = string.Empty;
+            ConvenientQuestLogWindow.selectedQuestDisplayed = true;
+            if (questMessages == null)
+                return;
+
+            messageCount = questMessages.Count;
+            List<Message> list = questMessages.Where(x => x.ParentQuest.UID == message.ParentQuest.UID).ToList();
+
+            // We were asked to show deleted quests.
+            // Cancelled, completed or by mistake
+            if (list.Count == 0)
+            {
+                SetTextActiveQuests();
+                return;
+            }
+
+            questText = $"{FormatQuestTitle(list.First().ParentQuest.DisplayName, list.First().ParentQuest.QuestName)}\n\n";
+            List<TextFile.Token> tokenList = new List<TextFile.Token>();
+            for (int currentMessageIndex = this.currentMessageIndex; currentMessageIndex < list.Count; ++currentMessageIndex)
+            {
+                TextFile.Token[] textTokens = list[currentMessageIndex].GetTextTokens(-1, true);
+                for (int index = 0; index < textTokens.Length; ++index)
+                {
+                    TextFile.Token token = textTokens[index];
+                    if (token.formatting == TextFile.Formatting.Text)
+                    {
+                        questText += $"{token.text}\n";
+                    }
+                    else
+                        token.formatting = TextFile.Formatting.JustifyLeft;
+                }
+
+                questText += $"{new string('-', 40)}\n";
+            }
+            DaggerfallUI.Instance.BookReaderWindow.CreateBook(questText);
+            DaggerfallUI.PostMessage(DaggerfallUIMessages.dfuiOpenBookReaderWindow);
+        }
+
+        private void SetTextForSelectedQuest2(Message message)
+        {
             ConvenientQuestLogWindow.selectedQuestDisplayed = true;
             if (questMessages == null)
                 return;
