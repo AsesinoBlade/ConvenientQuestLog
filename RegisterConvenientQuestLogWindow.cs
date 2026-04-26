@@ -10,6 +10,7 @@ using System;
 using System.Linq;
 using DaggerfallWorkshop.Utility;
 using DaggerfallConnect.Arena2;
+using DaggerfallWorkshop.Game.Entity;
 using DaggerfallWorkshop.Localization;
 
 
@@ -79,10 +80,9 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
         UIWindowFactory.RegisterCustomUIWindow(UIWindowType.QuestJournal, typeof(ConvenientQuestLogWindow));
 
         QuestMachine.OnQuestStarted += QuestMachineOnOnQuestStarted;
-        FormulaHelper.RegisterOverride(mod, "ReplyFinishTheQuestFirst", (Func<QuestResourceBehaviour, bool>)ReplyFinishTheQuestFirst);
     }
 
-    private bool ReplyFinishTheQuestFirst(QuestResourceBehaviour questResourceBehaviour)
+    private bool ReplyFinishTheQuestFirst(StaticNPC npc, QuestResourceBehaviour questResourceBehaviour)
     {
         QuestMacroHelper macroHelper = new QuestMacroHelper();
         string str = "";
@@ -95,6 +95,10 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
             $"I'm not sure why you are asking me about {questResourceBehaviour.TargetQuest.DisplayName},\nas I've already told you everything I know.[/center]",
         };
 
+        if (!ThisIsQuestGiver(npc, questResourceBehaviour))
+        {
+            return false;
+        }
         Clock clock = null;
         foreach (KeyValuePair<string, QuestResource> resource in questResourceBehaviour.TargetQuest.resources.Where(x => x.Value is Clock))
         {
@@ -160,6 +164,18 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
         return true;
     }
 
+    private bool ThisIsQuestGiver(StaticNPC npc, QuestResourceBehaviour questResourceBehaviour)
+    {
+        var qgiver = questResourceBehaviour.TargetQuest.resources["qgiver"] as Person;
+        if (qgiver == null)
+            return false;
+        if (qgiver.DisplayName != npc.DisplayName)
+            return false;
+        if (!string.IsNullOrEmpty(qgiver.HomeBuildingName) && qgiver.HomeBuildingName != GameManager.Instance.PlayerEnterExit.BuildingDiscoveryData.displayName)
+            return false;
+        return true;
+    }
+
     private void QuestMachineOnOnQuestStarted(Quest quest)
     {
         if (!IdentifyMainQuests)
@@ -201,12 +217,18 @@ public class RegisterConvenientQuestLogWindow : MonoBehaviour
     private void LoadSettings(ModSettings settings, ModSettingsChange change)
     {
 
+        useDurationTokenSetting = settings.GetValue<bool>("General", "QuestsShouldContainDurationToken");
+        useDetailedQuestDurationSetting = settings.GetValue<bool>("General", "DetailedQuestDuration");
+
+        var questorRemindsPlayerOfActiveQuest = settings.GetValue<bool>("Option", "QuestorRemindsPlayerOfActiveQuest");
         IdentifyMainQuests = settings.GetValue<bool>("Option", "IdentifyMainQuests");
         IdentifyMainQuestOptionalVsMandatory = settings.GetValue<bool>("Option", "IdentifyMainQuestOptionalVsMandatory");
         MessageDelay = settings.GetValue<int>("Option", "MessageDelay");
-        useDurationTokenSetting = settings.GetValue<bool>("General", "QuestsShouldContainDurationToken");
-        useDetailedQuestDurationSetting = settings.GetValue<bool>("General", "DetailedQuestDuration");
         MandatoryMessage = settings.GetValue<string>("Option", "MandatoryMessage");
         OptionalMessage = settings.GetValue<string>("Option", "OptionalMessage");
+        if (questorRemindsPlayerOfActiveQuest)
+            FormulaHelper.RegisterOverride(mod, "ReplyFinishTheQuestFirst", (Func<StaticNPC, QuestResourceBehaviour, bool>)ReplyFinishTheQuestFirst);
+        else
+            FormulaHelper.UnRegisterOverride(mod, "ReplyFinishTheQuestFirst");
     }
 }

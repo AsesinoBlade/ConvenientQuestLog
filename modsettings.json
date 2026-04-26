@@ -29,6 +29,13 @@
             "IsAdvanced": false,
             "Keys": [
                 {
+                    "Value": false,
+                    "Name": "QuestorRemindsPlayerOfActiveQuest",
+                    "Description": null,
+                    "$version": "v1",
+                    "$type": "DaggerfallWorkshop.Game.Utility.ModSupport.ModSettings.ToggleKey"
+                },
+                {
                     "Value": true,
                     "Name": "IdentifyMainQuests",
                     "Description": null,
